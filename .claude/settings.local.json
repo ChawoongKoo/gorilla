@@ -24,7 +24,10 @@
       "Bash(git show *)",
       "Bash(cat berkeley-function-call-leaderboard/bfcl_eval/data/text/failing_tools.json)",
       "Read(//tmp/**)",
-      "Bash(sort -t_ -k3 -n)"
+      "Bash(sort -t_ -k3 -n)",
+      "Bash(python -c \"import json; d=json.load\\(open\\('bfcl_eval/data/vision/geoguessr_type1.json'\\)\\); print\\('count:',len\\(d\\)\\); print\\('keys:',list\\(d[0].keys\\(\\)\\)\\); print\\('first id:',d[0].get\\('id'\\)\\); print\\('involved_classes:',d[0].get\\('involved_classes'\\)\\); print\\('initial_config:',d[0].get\\('initial_config'\\)\\)\")",
+      "Bash(python -c \"import json; d=json.load\\(open\\('bfcl_eval/data/possible_answer/vision/geoguessr_type1.json'\\)\\); print\\('count:',len\\(d\\)\\); print\\('first:',d[0]\\)\")",
+      "Bash(python *)"
     ]
   }
 }

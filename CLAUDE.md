@@ -295,3 +295,69 @@ You usually won't need these for BFCL work, but here's the lay of the land:
 - `data/` — APIBench (`api/`, `apibench/`, `apizoo/`); used by the original `gorilla/` paper code.
 
 Each of these has its own README; do not assume BFCL's tooling/conventions carry over.
+
+## Session notes & verified findings
+
+These are sticky facts confirmed during prior sessions — read this section before answering follow-ups about setup, paths, or geoguessr.
+
+### Branch in use
+
+- The user is on the `hans-vision` branch, not `main`. That branch adds the namespaced `text:*`/`vision:*`/`true_audio:*`/`text_audio:*` categories and the geoguessr/web-search vision categories.
+- The user's fork only had one branch checked out locally; remote branches show under `git branch -a` once `git fetch` is run. If a needed branch lives in the original repo (not the fork), add it as `upstream` and fetch.
+
+### Resolved project root
+
+Running the user's `bfcl` env from `berkeley-function-call-leaderboard/`, `BFCL_PROJECT_ROOT` is unset, so `eval_config.py:19` resolves:
+
+```
+PROJECT_ROOT = /Users/michaelkoo/Documents/algoverse/street_view_environment/gorilla/berkeley-function-call-leaderboard
+DOTENV_PATH  = .../berkeley-function-call-leaderboard/.env
+RESULT_PATH  = .../berkeley-function-call-leaderboard/result
+SCORE_PATH   = .../berkeley-function-call-leaderboard/score
+```
+
+`.env` **must** live at `berkeley-function-call-leaderboard/.env` — a `.env` at the monorepo root is ignored. To redirect outputs, export `BFCL_PROJECT_ROOT=/other/path` before invoking `bfcl`.
+
+### Environment
+
+- Conda env name: `bfcl` (Python 3.10), at `/opt/anaconda3/envs/bfcl/`.
+- Compatibility audit via `pip install --dry-run -e .` from the BFCL dir showed the env already satisfies all pinned versions (`numpy==1.26.4`, `mistralai==1.7.0`, `cohere==5.18.0`, etc.). Only `geopy` + transitive `geographiclib` were missing on this branch (new for geoguessr scoring) and get installed by the real `pip install -e .`.
+- No vLLM/SGLang extras installed; the user is running API models only.
+
+### Geoguessr server contract (active integration)
+
+The user is implementing the streetview server BFCL talks to. The `StreetViewAPI` client (`bfcl_eval/eval_checker/multi_turn_eval/func_source_code/street_view.py`) is purely an HTTP wrapper — no in-process simulation. Key facts (already detailed in the "Vision / Geoguessr" section above):
+
+- Base URL: `GEOGUESSR_SERVER_URL` (default `http://127.0.0.1:18000`). Single full URL, not a host/port split.
+- Required env vars: `GEOGUESSR_SERVER_URL` (where the client connects), `GOOGLE_MAPS_API_KEY`, `GOOGLE_MAPS_URL_SIGNING_SECRET` (forwarded inside the `/connect` request body — BFCL doesn't use them directly; the server does).
+- Envelope shape on every response: `{"ok": bool, "updates": {...}, "error": {"message": "..."}}`. The client reads `updates.session_id` (pinned into `X-Session-ID` header), `updates.available_moves`, `updates.image_base64`, and `updates.description`.
+- Endpoints required: `POST /connect`, `POST /init_panorama`, `GET /check/direction`, `POST /capture/view`, `POST /move/{8 directions}`, `POST /scroll/{left,right,up,down}`, `POST /zoom/{in,out}`, `POST /end_session`. See the table in the geoguessr section for required `updates` fields per endpoint.
+- The client retries `_connect_host` every 5s indefinitely on connection failure. If the server isn't up, `bfcl generate` will hang silently — start the server first.
+- `_timeout = (15, None)` — 15s connect timeout, no read timeout.
+- Per-worker session isolation: each `--num-threads` worker calls `/connect` to mint its own `session_id`, then sends it via `X-Session-ID` on subsequent calls. Server must isolate state per session.
+
+### Geoguessr run recipe (canonical)
+
+```bash
+conda activate bfcl
+cd /Users/michaelkoo/Documents/algoverse/street_view_environment/gorilla/berkeley-function-call-leaderboard
+# .env must contain GEOGUESSR_SERVER_URL + provider key
+# Server must be reachable at $GEOGUESSR_SERVER_URL
+
+# Smoke test (one ID)
+cp bfcl_eval/test_case_ids_to_generate.json.example ./test_case_ids_to_generate.json
+# edit to: {"vision:geoguessr_type1": ["geoguessr_type1_0"]}
+bfcl generate --model gpt-4o-2024-11-20-FC --run-ids --allow-overwrite
+bfcl evaluate --model gpt-4o-2024-11-20-FC --test-category vision:geoguessr_type1 --partial-eval
+
+# Full run
+bfcl generate --model gpt-4o-2024-11-20-FC --test-category vision:geoguessr --num-threads 4
+bfcl evaluate --model gpt-4o-2024-11-20-FC --test-category vision:geoguessr
+```
+
+### Things to remember for follow-up questions
+
+- The user prefers concrete, file-path-anchored answers. They asked for the `bfcl` command surface in tabular form; reuse that style for option listings.
+- Don't suggest `--test-category all` for vision work — it maps to `TEXT_FAILING_TOOLS_CATEGORY` on this branch (`category_mapping.py:130`).
+- For vision-capable models, the working set the user reached for is GPT-4o / GPT-5 / Gemini / Claude Sonnet+Opus FC handlers. Most local OSS handlers on this branch don't accept image tool results.
+- The user has previously been confused about `.env` location (root vs. BFCL dir). Always remind: BFCL dir.

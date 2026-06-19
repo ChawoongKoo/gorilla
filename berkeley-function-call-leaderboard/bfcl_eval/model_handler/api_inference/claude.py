@@ -33,7 +33,16 @@ class ClaudeHandler(BaseHandler):
     ) -> None:
         super().__init__(model_name, temperature, registry_name, is_fc_model, **kwargs)
         self.model_style = ModelStyle.ANTHROPIC
-        self.client = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+        # If OPENROUTER_ANTHROPIC_BASE_URL is set (e.g. OpenRouter's Anthropic-compatible endpoint),
+        # route through it and use OPENROUTER_API_KEY so ANTHROPIC_API_KEY is left untouched.
+        anthropic_base_url = os.getenv("OPENROUTER_ANTHROPIC_BASE_URL")
+        if anthropic_base_url:
+            self.client = Anthropic(
+                api_key=os.getenv("OPENROUTER_API_KEY"),
+                base_url=anthropic_base_url,
+            )
+        else:
+            self.client = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
 
     def decode_ast(self, result, language, has_tool_call_tag):
         if not self.is_fc_model:
@@ -77,6 +86,9 @@ class ClaudeHandler(BaseHandler):
             return 64000
         elif "haiku" in self.model_name:
             return 64000
+        elif "fable" in self.model_name:
+            # claude-fable-5: max output 128000 per /v1/models listing (2026-06-09)
+            return 128000
         else:
             raise ValueError(f"Unsupported model: {self.model_name}")
 
@@ -118,7 +130,7 @@ class ClaudeHandler(BaseHandler):
         if "system_prompt" in inference_data:
             kwargs["system"] = inference_data["system_prompt"]
         
-        if "opus-4-7" in self.model_name:
+        if "opus-4-7" in self.model_name or "opus-4-6" in self.model_name or "opus-4-8" in self.model_name or "fable" in self.model_name:
             del kwargs["temperature"]
 
         # Need to set timeout to avoid auto-error when requesting large context length

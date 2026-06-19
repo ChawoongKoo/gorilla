@@ -990,6 +990,11 @@ def evaluate_task(
 
     if is_geoguessr(test_category):
         possible_answer = load_ground_truth_entry(test_category)
+        
+        #This is just to allow that partial evals run correctly.
+        prompt, possible_answer = _subset_entries_by_model_ids(
+            model_result, prompt, possible_answer, allow_missing=allow_missing
+        )
         if is_geoguessr_type1(test_category):
             accuracy, total_count = vision_geoguessr_runner(
                 handler,

@@ -24,6 +24,11 @@ class StreetViewAPI:
         # on the server and can be fetched via GET /state when needed.
         self.session_id: Optional[str] = None
         self.available_moves: List[str] = None
+        # Ablation flag: when GEOGUESSR_NO_MOVEMENT=1, the move_* tools are not
+        # advertised to the model (look-only: capture/scroll/zoom remain). Read
+        # at instance-construction time, which happens during inference AFTER the
+        # .env is loaded in __main__.py, so the flag is picked up correctly.
+        self._no_movement = os.getenv("GEOGUESSR_NO_MOVEMENT", "0") == "1"
 
     # ------------------------------------------------------------------
     #  helper functions
@@ -135,6 +140,12 @@ class StreetViewAPI:
         return (self._base_url, self.session_id) == (value._base_url, value.session_id)
 
     def _get_updated_tool_list(self) -> List[str]:
+        moves = self.available_moves or []
+        if self._no_movement:
+            # No-movement ablation: drop the move_* tools, keep look-only actions
+            # (capture_view, scroll_*, zoom_*). available_moves holds schema tool
+            # names, with movement entries prefixed "move_".
+            return [name for name in moves if not name.startswith("move_")]
         return self.available_moves
 
     # ------------------------------------------------------------------

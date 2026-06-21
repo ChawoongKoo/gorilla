@@ -518,8 +518,26 @@ def load_dataset_entry(
             all_entries = process_vision_web_search_test_cases(all_entries, base_category)
 
         elif is_geoguessr(test_category):
-            # geoguessr categories
-            all_entries = load_file(modality_path / f"{base_category}.json")
+            # geoguessr categories.
+            # Web-search ablation: when GEOGUESSR_WEBSEARCH=1, load the
+            # `<base_category>_websearch.json` variant, which attaches the
+            # WebSearchAPI tools (involved_classes + initial_config). Read at
+            # call time (this runs during generation, after .env is loaded in
+            # __main__.py). Only type1 + competition have variants; if the flag
+            # is set but no variant exists, raise loudly rather than silently
+            # running a "web-search" condition without the tools.
+            if os.getenv("GEOGUESSR_WEBSEARCH", "0") == "1":
+                websearch_file = modality_path / f"{base_category}_websearch.json"
+                if not websearch_file.exists():
+                    raise FileNotFoundError(
+                        f"GEOGUESSR_WEBSEARCH=1 but no web-search variant exists at "
+                        f"{websearch_file}. Only geoguessr_type1 and "
+                        f"geoguessr_type1_competition have web-search variants; "
+                        f"unset GEOGUESSR_WEBSEARCH to run {base_category} normally."
+                    )
+                all_entries = load_file(websearch_file)
+            else:
+                all_entries = load_file(modality_path / f"{base_category}.json")
             all_entries = process_geoguessr_test_case(all_entries)
         else:
             raise ValueError(f"Invalid vision category: {test_category}")

@@ -1840,7 +1840,7 @@ local_inference_model_map = {
         vllm_tool_call_parser="qwen3_coder",
         supports_image_input=True,
     ),
-    "qwen/qwen3.6-plus-FC": OSSModelConfig(
+    "qwen3.6-plus-FC-openrouter": OSSModelConfig(
         model_name="qwen/qwen3.6-plus",
         display_name="Qwen3.6-Plus (FC, OpenRouter)",
         url="https://openrouter.ai/qwen/qwen3.6-plus",
@@ -1853,7 +1853,7 @@ local_inference_model_map = {
         vllm_tool_call_parser="qwen3_coder",
         supports_image_input=True,
     ),
-    "qwen/qwen3.7-plus-FC": OSSModelConfig(
+    "qwen3.7-plus-FC-openrouter": OSSModelConfig(
         model_name="qwen/qwen3.7-plus",
         display_name="Qwen3.7-Plus (FC, OpenRouter)",
         url="https://openrouter.ai/qwen/qwen3.7-plus",
@@ -1864,6 +1864,37 @@ local_inference_model_map = {
         underscore_to_dot=True,
         vllm_reasoning_parser="qwen3",
         vllm_tool_call_parser="qwen3_coder",
+        supports_image_input=True,
+    ),
+    # Native DashScope route (QWEN_API_KEY) — the plain ID is the direct route;
+    # the *-FC-openrouter entries above are the OpenRouter route (mirrors the
+    # claude-opus-*-FC vs -FC-openrouter naming). QwenAPIHandler hits
+    # dashscope.aliyuncs.com/compatible-mode/v1; run with NO --backend flag
+    # (it's an API model, not OSS). Vision verified live on both slugs.
+    "qwen3.6-plus-FC": ModelConfig(
+        model_name="qwen3.6-plus",
+        display_name="Qwen3.6-Plus (FC, native DashScope)",
+        url="https://www.alibabacloud.com/help/en/model-studio/models",
+        org="Qwen",
+        license="Proprietary",
+        model_handler=QwenAPIHandler,
+        input_price=None,
+        output_price=None,
+        is_fc_model=True,
+        underscore_to_dot=True,
+        supports_image_input=True,
+    ),
+    "qwen3.7-plus-FC": ModelConfig(
+        model_name="qwen3.7-plus",
+        display_name="Qwen3.7-Plus (FC, native DashScope)",
+        url="https://www.alibabacloud.com/help/en/model-studio/models",
+        org="Qwen",
+        license="Proprietary",
+        model_handler=QwenAPIHandler,
+        input_price=None,
+        output_price=None,
+        is_fc_model=True,
+        underscore_to_dot=True,
         supports_image_input=True,
     ),
     "google/gemma-4-31b-it-FC": OSSModelConfig(
